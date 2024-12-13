@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Outfit Color Matcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        header {
+            background-color: #383f66;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        main {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #color-picker-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        #color-picker-container input[type="color"] {
+            margin-right: 10px;
+            width: 50px;
+            height: 50px;
+            border: none;
+            cursor: pointer;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 200px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #5b4454;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .color-box {
+            display: inline-block;
+            width: 100px;
+            height: 100px;
+            margin: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Outfit Color Matcher</h1>
+        <p>Find colors that match your base color for outfit coordination!</p>
+    </header>
+    <main>
+        <div id="color-picker-container">
+            <input type="color" id="color-picker">
+            <input type="text" id="base-color" placeholder="#123456" maxlength="7" required>
+        </div>
+        <form id="color-form">
+            <button type="submit">Find Matching Colors</button>
+        </form>
+        <section id="color-results">
+            <p>Matching colors will be displayed here.</p>
+        </section>
+    </main>
+    <script>
+        // Sync color picker and text input
+        const colorPicker = document.getElementById('color-picker');
+        const baseColorInput = document.getElementById('base-color');
+
+        colorPicker.addEventListener('input', function () {
+            baseColorInput.value = colorPicker.value;
+        });
+
+        baseColorInput.addEventListener('input', function () {
+            if (/^#([0-9A-F]{6})$/i.test(baseColorInput.value)) {
+                colorPicker.value = baseColorInput.value;
+            }
+        });
+
+        // Handle form submission
+        document.getElementById('color-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const baseColor = baseColorInput.value;
+            const results = document.getElementById('color-results');
+
+            // Validate hex code
+            const hexRegex = /^#([0-9A-F]{6})$/i;
+            if (!hexRegex.test(baseColor)) {
+                results.innerHTML = '<p>Please enter a valid hex color code.</p>';
+                return;
+            }
+
+            // Generate matching colors (complementary, analogous, triadic)
+            const matchingColors = getMatchingColors(baseColor);
+
+            // Display the results
+            results.innerHTML = matchingColors.map(color => `
+                <div>
+                    <div class="color-box" style="background-color: ${color}"></div>
+                    <p>${color}</p>
+                </div>
+            `).join('');
+        });
+
+        function getMatchingColors(hex) {
+            // Convert hex to RGB
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+
+            // Generate complementary color
+            const compColor = `#${toHex(255 - r)}${toHex(255 - g)}${toHex(255 - b)}`;
+
+            // Generate analogous colors
+            const ana1 = adjustHue(hex, 30);
+            const ana2 = adjustHue(hex, -30);
+
+            return [compColor, ana1, ana2];
+        }
+
+        function toHex(value) {
+            return value.toString(16).padStart(2, '0').toUpperCase();
+        }
+
+        function adjustHue(hex, degree) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+
+            const hsv = rgbToHsv(r, g, b);
+            hsv[0] = (hsv[0] + degree) % 360;
+            if (hsv[0] < 0) hsv[0] += 360;
+
+            const rgb = hsvToRgb(hsv[0], hsv[1], hsv[2]);
+            return `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
+        }
+
+        function rgbToHsv(r, g, b) {
+            r /= 255;
+            g /= 255;
+            b /= 255;
+
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, v = max;
+
+            const d = max - min;
+            s = max === 0 ? 0 : d / max;
+
+            if (max === min) {
+                h = 0; // achromatic
+            } else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+
+            return [Math.round(h * 360), s, v];
+        }
+
+        function hsvToRgb(h, s, v) {
+            let r, g, b;
+
+            const i = Math.floor(h / 60);
+            const f = h / 60 - i;
+            const p = v * (1 - s);
+            const q = v * (1 - f * s);
+            const t = v * (1 - (1 - f) * s);
+
+            switch (i % 6) {
+                case 0: r = v, g = t, b = p; break;
+                case 1: r = q, g = v, b = p; break;
+                case 2: r = p, g = v, b = t; break;
+                case 3: r = p, g = q, b = v; break;
+                case 4: r = t, g = p, b = v; break;
+                case 5: r = v, g = p, b = q; break;
+            }
+
+            return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+        }
+    </script>
+</body>
+</html>
